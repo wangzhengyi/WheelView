@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:wl="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.wzy.wheelview.library.WheelView
+        android:id="@+id/id_wheel_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        wl:center_text_size="40sp"
+        wl:center_text_color="#de3d0c"
+        wl:side_text_size="30sp"
+        wl:side_text_color="#d5e70b"
+        wl:show_bottom_text="true"/>
+</RelativeLayout>

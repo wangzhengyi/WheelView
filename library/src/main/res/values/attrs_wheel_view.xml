@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="WheelView">
+        <attr name="center_text_color" format="color"/>
+        <attr name="center_text_size" format="dimension"/>
+        <attr name="side_text_color" format="color"/>
+        <attr name="side_text_size" format="dimension"/>
+        <attr name="center_margin_top" format="dimension"/>
+        <attr name="center_margin_bottom" format="dimension"/>
+        <attr name="paint_align" format="enum">
+            <enum name="left" value="0"/>
+            <enum name="center" value="1"/>
+            <enum name="right" value="2"/>
+        </attr>
+        <attr name="show_bottom_text" format="boolean"/>
+    </declare-styleable>
+
+</resources>
