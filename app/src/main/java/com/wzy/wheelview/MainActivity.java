@@ -22,7 +22,7 @@ public class MainActivity extends Activity {
     private void initView() {
         WheelView wheelView = (WheelView) findViewById(R.id.id_wheel_view);
         List<String> content = new ArrayList<>();
-        for (int i = 0; i < 24; i ++) {
+        for (int i = 0; i < 24; i++) {
             content.add(String.format(Locale.getDefault(), "%02d", i));
         }
         wheelView.setItemListAndScaleContent(content, "小时");

@@ -589,13 +589,13 @@ public class WheelView extends View {
          * 当前滚动补偿大于0,说明还有没有滚动的部分,needToIncrease是当前条目是否小于条目数
          * 如果当前滚动补偿不大于0,needToIncrease是当前条目是否大于0
          */
-        boolean needToIncrease = offset > 0 ? mSelectedPosition < mItemList.size()
+        boolean needToIncrease = offset > 0 ? mSelectedPosition < mItemList.size() - 1
                 : mSelectedPosition > 0;
         if ((isCyclic || needToIncrease) && Math.abs((float) offset) > (float) itemHeight / 2) {
             if (offset < 0) {
-                offset += itemHeight + MIN_DELTA_FOR_SCROLLING;
-            } else {
                 offset -= itemHeight + MIN_DELTA_FOR_SCROLLING;
+            } else {
+                offset += itemHeight + MIN_DELTA_FOR_SCROLLING;
             }
         }
         if (Math.abs(offset) > MIN_DELTA_FOR_SCROLLING) {
@@ -625,9 +625,6 @@ public class WheelView extends View {
 
         // 重置偏移量
         mScrollingOffset = 0;
-
-        // 重绘布局
-        invalidate();
     }
 
     private int getItemHeight() {
