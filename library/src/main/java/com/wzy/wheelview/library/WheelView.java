@@ -499,7 +499,7 @@ public class WheelView extends View {
             mSelectedPosition = 0;
         }
 
-        if (mSelectedPosition > mItemList.size()) {
+        if (mSelectedPosition >= mItemList.size()) {
             mSelectedPosition = mItemList.size() - 1;
         }
 
