@@ -520,12 +520,8 @@ public class WheelView extends View {
             pos %= mItemList.size();
         } else if (isScrollingPerformed) { // 如果不可循环且滚动正在执行
             if (pos < 0) {
-                // 对应着下滑操作,此时offset为负值
-                count = mSelectedPosition * -1;
                 pos = 0;
             } else if (pos >= mItemList.size()) {
-                // 对应着上滑操作,此时offset为正值
-                count = mItemList.size() - 1 - mSelectedPosition;
                 pos = mItemList.size() - 1;
             }
         } else {
