@@ -39,6 +39,14 @@ private void initView() {
 }
 ```
 
+-------
+# 原理讲解
+
+## 手势检测功能
+
+首先给出手势检测的流程图如下:
+
+
 # License
 >Copyright 2014 Wang Zhengyi
 >

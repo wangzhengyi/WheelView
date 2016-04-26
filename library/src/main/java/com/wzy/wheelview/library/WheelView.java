@@ -463,17 +463,6 @@ public class WheelView extends View {
         return (centerTextTopY - mCenterMarginTop - tFmi.bottom);
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (mItemList.size() > 0) {
-            if (!mGestureDetector.onTouchEvent(event) && event.getAction() == MotionEvent.ACTION_UP) {
-                justify();
-            }
-        }
-
-        return true;
-    }
-
     public void setItemListAndScaleContent(List<String> list, String content) {
         mItemList = list;
         mScaleTextContent = content;
@@ -503,6 +492,17 @@ public class WheelView extends View {
         invalidate();
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (mItemList.size() > 0) {
+            if (!mGestureDetector.onTouchEvent(event) && event.getAction() == MotionEvent.ACTION_UP) {
+                justify();
+            }
+        }
+
+        return true;
+    }
+
     private void doScroll(int delta) {
         mScrollingOffset += delta;
 
@@ -520,10 +520,12 @@ public class WheelView extends View {
             pos %= mItemList.size();
         } else if (isScrollingPerformed) { // 如果不可循环且滚动正在执行
             if (pos < 0) {
-                count = mSelectedPosition;
+                // 对应着下滑操作,此时offset为负值
+                count = mSelectedPosition * -1;
                 pos = 0;
             } else if (pos >= mItemList.size()) {
-                count = mSelectedPosition - mItemList.size() + 1;
+                // 对应着上滑操作,此时offset为正值
+                count = mItemList.size() - 1 - mSelectedPosition;
                 pos = mItemList.size() - 1;
             }
         } else {
