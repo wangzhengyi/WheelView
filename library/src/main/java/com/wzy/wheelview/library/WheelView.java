@@ -10,7 +10,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -232,7 +231,6 @@ public class WheelView extends View {
                 @Override
                 public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
                                         float distanceY) {
-                    Log.e("zhengyi.wzy", "distanceY=" + distanceY);
                     startScrolling();
                     doScroll((int) distanceY);
                     return true;
@@ -268,7 +266,7 @@ public class WheelView extends View {
                      * int minY：y轴滚动的最小值
                      * int maxY：y轴滚动的最大值
                      */
-                    mScroller.fling(0, mLastScrollY, 0, (int) velocityY, 0, 0, minY, maxY);
+                    mScroller.fling(0, mLastScrollY, 0, (int) velocityY / 2, 0, 0, minY, maxY);
                     setNextMessage(MESSAGE_SCROLL);
                     return true;
                 }
@@ -469,7 +467,6 @@ public class WheelView extends View {
     public boolean onTouchEvent(MotionEvent event) {
         if (mItemList.size() > 0) {
             if (!mGestureDetector.onTouchEvent(event) && event.getAction() == MotionEvent.ACTION_UP) {
-                Log.e("zhengyi.wzy", "enter onTouchEvent justify!");
                 justify();
             }
         }
@@ -574,24 +571,22 @@ public class WheelView extends View {
     }
 
     private void justify() {
-        Log.e("zhengyi.wzy", "need justify!");
         if (mItemList.size() <= 0) {
             return;
         }
 
-        // 上一次y轴的位置为0
+        // 补偿之前将Y轴位置设置为0,代表当前已经静止.
         mLastScrollY = 0;
         int offset = mScrollingOffset;
         int itemHeight = getItemHeight();
 
-        Log.e("zhengyi.wzy", "justify offset=" + offset + ", itemHeight=" + getItemHeight());
         /**
          * 当前滚动补偿大于0,说明还有没有滚动的部分,needToIncrease是当前条目是否小于条目数
          * 如果当前滚动补偿不大于0,needToIncrease是当前条目是否大于0
          */
         boolean needToIncrease = offset > 0 ? mSelectedPosition < mItemList.size() - 1
                 : mSelectedPosition > 0;
-        if ((isCyclic || needToIncrease) && Math.abs((float) offset) > (float) itemHeight / 2) {
+        if ((isCyclic || needToIncrease) && Math.abs((float) offset) > (float) itemHeight * 4 / 5) {
             if (offset < 0) {
                 offset -= itemHeight + MIN_DELTA_FOR_SCROLLING;
             } else {
@@ -599,7 +594,7 @@ public class WheelView extends View {
             }
         }
         if (Math.abs(offset) > MIN_DELTA_FOR_SCROLLING) {
-            mScroller.startScroll(0, 0, 0, offset, SCROLLING_DURATION);
+            mScroller.startScroll(0, 0, 0, offset * -1, SCROLLING_DURATION);
             setNextMessage(MESSAGE_JUSTIFY);
         } else {
             finishScrolling();
