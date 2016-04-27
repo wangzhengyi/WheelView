@@ -48,6 +48,10 @@ private void initView() {
 
 ![onTouchEvent](https://github.com/wangzhengyi/WheelView/raw/master/screenshots/GestureDetector.png)
 
+Handler处理MSG事件流程:
+
+![AnimationHandler](https://github.com/wangzhengyi/WheelView/raw/master/screenshots/AnimationHandler.png)
+
 
 # License
 >Copyright 2014 Wang Zhengyi
