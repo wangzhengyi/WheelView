@@ -46,6 +46,8 @@ private void initView() {
 
 首先给出手势检测的流程图如下:
 
+![onTouchEvent](https://github.com/wangzhengyi/WheelView/raw/master/screenshots/GestureDetector.png)
+
 
 # License
 >Copyright 2014 Wang Zhengyi
