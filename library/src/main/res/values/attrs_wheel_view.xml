@@ -3,8 +3,10 @@
     <declare-styleable name="WheelView">
         <attr name="center_text_color" format="color"/>
         <attr name="center_text_size" format="dimension"/>
-        <attr name="side_text_color" format="color"/>
-        <attr name="side_text_size" format="dimension"/>
+        <attr name="top_text_color" format="color"/>
+        <attr name="top_text_size" format="dimension"/>
+        <attr name="btm_text_color" format="color"/>
+        <attr name="btm_text_size" format="dimension"/>
         <attr name="center_margin_top" format="dimension"/>
         <attr name="center_margin_bottom" format="dimension"/>
         <attr name="paint_align" format="enum">

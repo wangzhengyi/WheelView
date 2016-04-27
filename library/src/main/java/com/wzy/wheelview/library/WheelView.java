@@ -21,106 +21,125 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class WheelView extends View {
     /**
-     * 默认中心文字大小(px)
+     * Default center text size (px).
      */
     private static final float DEFAULT_CENTER_TEXT_SIZE = 60;
 
     /**
-     * 默认两侧文字大小(px)
+     * Default two side text size (px).
      */
     private static final float DEFAULT_SIDE_TEXT_SIZE = 22;
 
     /**
-     * 默认中心文字的颜色
+     * Default center text color.
      */
     private static final int DEFAULT_CENTER_TEXT_COLOR = Color.parseColor("#ffffff");
 
     /**
-     * 默认两侧文字的颜色
+     * Default two side text color.
      */
     private static final int DEFAULT_SIDE_TEXT_COLOR = Color.parseColor("#808080");
 
     /**
-     * 默认中心文字距离上方文字的间距
+     * Default center text margin top text distance.
      */
     private static final float DEFAULT_CENTER_MARGIN_TOP = 16;
 
     /**
-     * 默认中心文字距离下方文字的间距
+     * Default center text margin bottom text distance.
      */
     private static final float DEFAULT_CENTER_MARGIN_BOTTOM = 18;
+
     /**
-     * 滚动花费时间,默认250ms.
+     * Default scrolling duration.
      */
     private static final int SCROLLING_DURATION = 400;
+
     /**
-     * 最小的滚动值,每次最小滚动一个单位.
+     * Min delta for scroll.
      */
     private static final int MIN_DELTA_FOR_SCROLLING = 1;
+
     /**
-     * 滚动信息.
+     * Handler message for content scroll.
      */
-    private final int MESSAGE_SCROLL = 0;
+    private static final int MESSAGE_SCROLL = 0;
+
     /**
-     * 调整信息.
+     * Handler message for scroll justify.
      */
-    private final int MESSAGE_JUSTIFY = 1;
+    private static final int MESSAGE_JUSTIFY = 1;
+
     /**
-     * 中心文字的画笔
+     * Center text paint.
      */
     private Paint mCenterPaint;
+
     /**
-     * 中心文字的颜色
+     * Center text color.
      */
     private int mCenterTextColor;
+
     /**
-     * 中心文字大小
+     * Center text size.
      */
     private float mCenterTextSize;
+
     /**
-     * 下方文字的画笔
+     * The distance between center text and side text.
      */
-    private Paint mSidePaint;
+    private float mCenterMarginTop, mCenterMarginBottom;
+
     /**
-     * 上方刻度的画笔
+     * Bottom text paint.
      */
-    private Paint mScalePaint;
+    private Paint mBottomTextPaint;
+
     /**
-     * 两侧文字的颜色
+     * Bottom text color.
      */
-    private int mSideTextColor;
+    private int mBottomTextColor;
+
     /**
-     * 两侧文字的大小
+     * Bottom text size.
      */
-    private float mSideTextSize;
+    private float mBottomTextSize;
+
     /**
-     * 中心文字距离上方文字的间距
+     * Top scale content text paint.
      */
-    private float mCenterMarginTop;
+    private Paint mTopScaleTextPaint;
+
     /**
-     * 中心文字距离下方文字的间距
+     * Top text color.
      */
-    private float mCenterMarginBottom;
+    private int mTopScaleTextColor;
+
     /**
-     * View中心点的X和Y坐标
+     * Top text size.
+     */
+    private float mTopScaleTextSize;
+
+    /**
+     * Center coordinate of view.
      */
     private float mCenterX, mCenterY;
+
     /**
-     * 中心文字内容
+     * Display contents.
      */
     private List<String> mItemList;
+
     /**
-     * 刻度内容(小时或者分钟)
-     */
-    private String mScaleTextContent;
-    /**
-     * 中心文字所在List的position
+     * Current selected position.
      */
     private int mSelectedPosition;
+
     /**
-     * 记录Touch移动的距离
+     * Scale Content, e.g. Hour or Minute.
      */
-    private float mMoveY;
+    private String mScaleTextContent;
+
     /**
      * 记录手指按下的距离
      */
@@ -145,20 +164,25 @@ public class WheelView extends View {
      * Scroller类封装滚动操作.
      */
     private Scroller mScroller;
+
     /**
-     * 是否正在滚动.
+     * view scrolling state.
      */
     private boolean isScrollingPerformed;
+
     /**
      * 先前y轴所在的位置.
      */
     private int mLastScrollY;
+
     /**
-     * 滚动偏移量.
+     * View scrolling offset.
      */
     private int mScrollingOffset;
+
     /**
-     * 是否循环滚动.
+     * Is view scroll cyclic.
+     * TODO:add set function
      */
     private boolean isCyclic = false;
 
@@ -283,15 +307,20 @@ public class WheelView extends View {
     public WheelView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
 
-        TypedArray ta = context.obtainStyledAttributes(attrs, R.styleable.WheelView);
+        final TypedArray ta = context.obtainStyledAttributes(attrs, R.styleable.WheelView);
         mCenterTextColor = ta.getColor(
                 R.styleable.WheelView_center_text_color, DEFAULT_CENTER_TEXT_COLOR);
         mCenterTextSize = ta.getDimension(R.styleable.WheelView_center_text_size,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, DEFAULT_CENTER_TEXT_SIZE,
                         getResources().getDisplayMetrics()));
-        mSideTextColor = ta.getColor(
-                R.styleable.WheelView_side_text_color, DEFAULT_SIDE_TEXT_COLOR);
-        mSideTextSize = ta.getDimension(R.styleable.WheelView_side_text_size,
+        mTopScaleTextColor = ta.getColor(
+                R.styleable.WheelView_top_text_color, DEFAULT_SIDE_TEXT_COLOR);
+        mTopScaleTextSize = ta.getDimension(R.styleable.WheelView_top_text_size,
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, DEFAULT_SIDE_TEXT_SIZE,
+                        getResources().getDisplayMetrics()));
+        mBottomTextColor = ta.getColor(
+                R.styleable.WheelView_btm_text_color, DEFAULT_SIDE_TEXT_COLOR);
+        mBottomTextSize = ta.getDimension(R.styleable.WheelView_btm_text_size,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, DEFAULT_SIDE_TEXT_SIZE,
                         getResources().getDisplayMetrics()));
         mCenterMarginTop = ta.getDimension(R.styleable.WheelView_center_margin_top,
@@ -306,19 +335,7 @@ public class WheelView extends View {
         ta.recycle();
 
         initPaint();
-        initScrollData(context);
-    }
-
-    private void initScrollData(Context context) {
-        mGestureDetector = new GestureDetector(context, mGestureListener);
-        /* 是否允许长按操作.
-         * true:允许长按,用户按下不松开,会返回长按事件.
-         * false:不允许长按,用户按下不松开滑动,会返回滚动事件.
-         */
-        mGestureDetector.setIsLongpressEnabled(false);
-
-        // 使用默认的时间和插入器创建一个滚动器.
-        mScroller = new Scroller(context);
+        initScroll(context);
     }
 
     private void initPaintAlign(int paintAlign) {
@@ -339,19 +356,21 @@ public class WheelView extends View {
     }
 
     private void initPaint() {
-        mCenterPaint = createCenterPaint(mCenterTextSize, mCenterTextColor);
-        mSidePaint = createCenterPaint(mSideTextSize, mSideTextColor);
-        mScalePaint = createScalePaint(mSideTextSize, mSideTextColor);
+        mCenterPaint = createTextPaint(mCenterTextSize, mCenterTextColor);
+        mBottomTextPaint = createTextPaint(mBottomTextSize, mBottomTextColor);
+        mTopScaleTextPaint = createScalePaint(mTopScaleTextSize, mTopScaleTextColor);
 
         initTouchChangeHeight();
     }
 
-    private void initTouchChangeHeight() {
-        Paint.FontMetricsInt fmi = mCenterPaint.getFontMetricsInt();
-        mTouchChangeHeight = fmi.ascent * -1;
-    }
-
-    private Paint createCenterPaint(float textSize, int color) {
+    /**
+     * Create text paint depend on text size and text color.
+     *
+     * @param textSize text size
+     * @param color    text color
+     * @return text paint
+     */
+    private Paint createTextPaint(float textSize, int color) {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(textSize);
         paint.setColor(color);
@@ -360,6 +379,16 @@ public class WheelView extends View {
         return paint;
     }
 
+    /**
+     * Create scale text paint depend on center text paint align.
+     * center text align == CENTER, scale text align = CENTER
+     * center text align == LEFT, scale text align = RIGHT.
+     * center text align == RIGHT, scale text align = LEFT.
+     *
+     * @param textSize scale text size
+     * @param color    scale text color
+     * @return scale text paint
+     */
     private Paint createScalePaint(float textSize, int color) {
         Paint.Align scalePaintAlign = Paint.Align.CENTER;
         if (mPaintAlign == Paint.Align.LEFT) {
@@ -374,6 +403,19 @@ public class WheelView extends View {
         paint.setTextAlign(scalePaintAlign);
         paint.setStyle(Paint.Style.FILL);
         return paint;
+    }
+
+    private void initTouchChangeHeight() {
+        Paint.FontMetricsInt fmi = mCenterPaint.getFontMetricsInt();
+        mTouchChangeHeight = fmi.ascent * -1;
+    }
+
+    private void initScroll(Context context) {
+        mGestureDetector = new GestureDetector(context, mGestureListener);
+        // Disable long press event.
+        mGestureDetector.setIsLongpressEnabled(false);
+
+        mScroller = new Scroller(context);
     }
 
     @Override
@@ -401,7 +443,7 @@ public class WheelView extends View {
     private void drawSideText(Canvas canvas) {
         int nextItem = (mSelectedPosition + 1) % mItemList.size();
         float baseLineY = calculateBaseLineForBottom();
-        canvas.drawText(mItemList.get(nextItem), mCenterX, baseLineY, mSidePaint);
+        canvas.drawText(mItemList.get(nextItem), mCenterX, baseLineY, mBottomTextPaint);
     }
 
     private void drawScaleText(Canvas canvas) {
@@ -409,13 +451,13 @@ public class WheelView extends View {
             float baseLineY = calculateBaseLineForTop();
             float textWidth = calculateCenterTextWidth();
             float x = mCenterX;
-            if (mScalePaint.getTextAlign() == Paint.Align.LEFT) {
+            if (mTopScaleTextPaint.getTextAlign() == Paint.Align.LEFT) {
                 x = mCenterX - textWidth;
-            } else if (mScalePaint.getTextAlign() == Paint.Align.RIGHT) {
+            } else if (mTopScaleTextPaint.getTextAlign() == Paint.Align.RIGHT) {
                 x = mCenterX + textWidth;
             }
 
-            canvas.drawText(mScaleTextContent, x, baseLineY, mScalePaint);
+            canvas.drawText(mScaleTextContent, x, baseLineY, mTopScaleTextPaint);
         }
     }
 
@@ -435,7 +477,7 @@ public class WheelView extends View {
         // top = top线的y坐标 - baseline线的y坐标
         // bottom = bottom线的y坐标 - baseline线的y坐标
         Paint.FontMetricsInt fmi = mCenterPaint.getFontMetricsInt();
-        float centerY = mCenterY + mMoveY;
+        float centerY = mCenterY;
         return (fmi.descent - fmi.ascent) / 2.0F - fmi.descent + centerY;
     }
 
@@ -443,11 +485,11 @@ public class WheelView extends View {
         // 获取中心文字的下边界
         Paint.FontMetricsInt fmi = mCenterPaint.getFontMetricsInt();
         int centerTextHeight = fmi.bottom - fmi.top;
-        float centerY = mCenterY + mMoveY;
+        float centerY = mCenterY;
         float centerTextBottomY = centerY + centerTextHeight / 2.0F;
 
         // 获取下方文字baseline距离top的大小
-        Paint.FontMetricsInt bFmi = mSidePaint.getFontMetricsInt();
+        Paint.FontMetricsInt bFmi = mBottomTextPaint.getFontMetricsInt();
         return (centerTextBottomY + mCenterMarginBottom - bFmi.top);
     }
 
@@ -459,7 +501,7 @@ public class WheelView extends View {
         float centerTextTopY = centerY - centerTextHeight / 2.0F;
 
         // 获取上方文字baseline距离bottom的大小
-        Paint.FontMetricsInt tFmi = mSidePaint.getFontMetricsInt();
+        Paint.FontMetricsInt tFmi = mBottomTextPaint.getFontMetricsInt();
         return (centerTextTopY - mCenterMarginTop - tFmi.bottom);
     }
 

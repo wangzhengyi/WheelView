@@ -10,7 +10,7 @@
         android:layout_height="match_parent"
         wl:center_text_size="40sp"
         wl:center_text_color="#de3d0c"
-        wl:side_text_size="30sp"
-        wl:side_text_color="#d5e70b"
+        wl:top_text_size="30sp"
+        wl:top_text_color="#d5e70b"
         wl:show_bottom_text="true"/>
 </RelativeLayout>
