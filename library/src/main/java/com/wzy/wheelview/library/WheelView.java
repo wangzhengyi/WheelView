@@ -1,6 +1,5 @@
 package com.wzy.wheelview.library;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -16,6 +15,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Scroller;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
 
 @SuppressWarnings("unused")
@@ -86,6 +86,11 @@ public class WheelView extends View {
     private float mCenterTextSize;
 
     /**
+     * Center text paint align.
+     */
+    private Paint.Align mCenterPaintAlign;
+
+    /**
      * The distance between center text and side text.
      */
     private float mCenterMarginTop, mCenterMarginBottom;
@@ -106,6 +111,11 @@ public class WheelView extends View {
     private float mBottomTextSize;
 
     /**
+     * Whether need to show bottom text.
+     */
+    private boolean mIsShowBottomText;
+
+    /**
      * Top scale content text paint.
      */
     private Paint mTopScaleTextPaint;
@@ -119,11 +129,6 @@ public class WheelView extends View {
      * Top text size.
      */
     private float mTopScaleTextSize;
-
-    /**
-     * Center coordinate of view.
-     */
-    private float mCenterX, mCenterY;
 
     /**
      * Display contents.
@@ -141,29 +146,18 @@ public class WheelView extends View {
     private String mScaleTextContent;
 
     /**
-     * 记录手指按下的距离
+     * Center coordinate of view.
      */
-    private float mLastDownY;
+    private float mCenterX, mCenterY;
+
     /**
      * Touch事件需要改变的高度.
      */
-    private int mTouchChangeHeight;
-    /**
-     * 文字的Align
-     */
-    private Paint.Align mPaintAlign;
-    /**
-     * 是否呈现Bottom文本
-     */
-    private boolean mIsShowBottomText;
-    /**
-     * 手势检测器
-     */
+    private int mCenterItemHeight;
+
     private GestureDetector mGestureDetector;
-    /**
-     * Scroller类封装滚动操作.
-     */
     private Scroller mScroller;
+    private Handler mScrollHandler;
 
     /**
      * view scrolling state.
@@ -171,7 +165,7 @@ public class WheelView extends View {
     private boolean isScrollingPerformed;
 
     /**
-     * 先前y轴所在的位置.
+     * Last scroll y coordinate.
      */
     private int mLastScrollY;
 
@@ -182,119 +176,8 @@ public class WheelView extends View {
 
     /**
      * Is view scroll cyclic.
-     * TODO:add set function
      */
-    private boolean isCyclic = false;
-
-    /**
-     * Scroller handler
-     */
-    @SuppressLint("HandlerLeak")
-    private Handler mAnimationHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            // 回调该方法获取当前位置,如果返回true,说明动画还没有执行完毕
-            mScroller.computeScrollOffset();
-            // 获取当前y位置
-            int currY = mScroller.getCurrY();
-            // 获取已经滚动的位置,使用上一次位置减去当前位置
-            int delta = mLastScrollY - currY;
-            mLastScrollY = currY;
-            if (delta != 0) {
-                // 改变值不为0,继续滚动
-                doScroll(delta);
-            }
-
-            /**
-             * 如果滚动到了指定的位置,滚动还没有停止
-             * 这时需要强制停止
-             */
-            if (Math.abs(currY - mScroller.getFinalY()) < MIN_DELTA_FOR_SCROLLING) {
-                mScroller.forceFinished(true);
-            }
-
-            /**
-             * 如果滚动没有停止
-             * 再向Handler发送一个停止
-             */
-            if (!mScroller.isFinished()) {
-                mAnimationHandler.sendEmptyMessage(msg.what);
-            } else if (msg.what == MESSAGE_SCROLL) {
-                justify();
-            } else { // MESSAGE_JUSTIFY
-                finishScrolling();
-            }
-        }
-    };
-    private GestureDetector.SimpleOnGestureListener mGestureListener =
-            new GestureDetector.SimpleOnGestureListener() {
-                /**
-                 * 按下操作.
-                 */
-                @Override
-                public boolean onDown(MotionEvent e) {
-                    // 如果滚动在执行
-                    if (isScrollingPerformed) {
-                        // 滚动强制停止,按下的时候不能继续滚动
-                        mScroller.forceFinished(true);
-                        // 清理信息
-                        clearMessages();
-                        return true;
-                    }
-                    return false;
-                }
-
-                /**
-                 * 手势监听器监听到滚动操作后的回调.
-                 * @param e1 触发滚动时第一次按下的事件.
-                 * @param e2 触发滚动时的移动事件.
-                 * @param distanceX 从上一次调用该方法到这一次x轴滚动的距离.
-                 * @param distanceY 从上一次调用该方法到这一次y轴滚动的距离.
-                 * @return 事件触发成功, 执行完方法中的操作, 返回true;否则,返回false.
-                 */
-                @Override
-                public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX,
-                                        float distanceY) {
-                    startScrolling();
-                    doScroll((int) distanceY);
-                    return true;
-                }
-
-                /**
-                 * 当一个急冲手势发生后回调该方法,会计算出该手势在x轴和y轴的速率.
-                 * @param e1 急冲动作的第一次触摸事件.
-                 * @param e2 急冲动作的移动发生的时候的触摸事件.
-                 * @param velocityX x轴的速率.
-                 * @param velocityY y轴的速率.
-                 * @return 执行完毕返回true, 执行失败返回false.
-                 */
-                @Override
-                public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
-                                       float velocityY) {
-                    // 计算上一次的y轴位置,当前条目高度加上剩余的不够一行高度的那部分
-                    mLastScrollY = mSelectedPosition * getItemHeight() + mScrollingOffset;
-
-                    // 如果可以循环最大值是无限大,不能循环就是条目数的高度值
-                    int maxY = isCyclic ? 0x7FFFFFFF : mItemList.size() * getItemHeight();
-                    int minY = isCyclic ? -maxY : 0;
-
-                    /**
-                     * Scroll 开始根据一个急冲手势滚动,滚动距离与初速度相关
-                     * 参数介绍：
-                     * int startX：开始时的x轴位置
-                     * int startY：开始时的y轴位置
-                     * int velocityX：急冲手势的x轴的初速度,单位px/s
-                     * int velocityY：急冲手势的y轴的初速度,单位px/s
-                     * int minX：x轴滚动的最小值
-                     * int maxX：x轴滚动的最大值
-                     * int minY：y轴滚动的最小值
-                     * int maxY：y轴滚动的最大值
-                     */
-                    mScroller.fling(0, mLastScrollY, 0, (int) velocityY / 2, 0, 0, minY, maxY);
-                    setNextMessage(MESSAGE_SCROLL);
-                    return true;
-                }
-            };
+    private boolean mIsCyclic = false;
 
     public WheelView(Context context) {
         this(context, null);
@@ -341,16 +224,16 @@ public class WheelView extends View {
     private void initPaintAlign(int paintAlign) {
         switch (paintAlign) {
             case 0:
-                mPaintAlign = Paint.Align.LEFT;
+                mCenterPaintAlign = Paint.Align.LEFT;
                 break;
             case 1:
-                mPaintAlign = Paint.Align.CENTER;
+                mCenterPaintAlign = Paint.Align.CENTER;
                 break;
             case 2:
-                mPaintAlign = Paint.Align.RIGHT;
+                mCenterPaintAlign = Paint.Align.RIGHT;
                 break;
             default:
-                mPaintAlign = Paint.Align.CENTER;
+                mCenterPaintAlign = Paint.Align.CENTER;
                 break;
         }
     }
@@ -374,7 +257,7 @@ public class WheelView extends View {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setTextSize(textSize);
         paint.setColor(color);
-        paint.setTextAlign(mPaintAlign);
+        paint.setTextAlign(mCenterPaintAlign);
         paint.setStyle(Paint.Style.FILL);
         return paint;
     }
@@ -391,9 +274,9 @@ public class WheelView extends View {
      */
     private Paint createScalePaint(float textSize, int color) {
         Paint.Align scalePaintAlign = Paint.Align.CENTER;
-        if (mPaintAlign == Paint.Align.LEFT) {
+        if (mCenterPaintAlign == Paint.Align.LEFT) {
             scalePaintAlign = Paint.Align.RIGHT;
-        } else if (mPaintAlign == Paint.Align.RIGHT) {
+        } else if (mCenterPaintAlign == Paint.Align.RIGHT) {
             scalePaintAlign = Paint.Align.LEFT;
         }
 
@@ -407,10 +290,12 @@ public class WheelView extends View {
 
     private void initTouchChangeHeight() {
         Paint.FontMetricsInt fmi = mCenterPaint.getFontMetricsInt();
-        mTouchChangeHeight = fmi.ascent * -1;
+        mCenterItemHeight = fmi.ascent * -1;
     }
 
     private void initScroll(Context context) {
+        mScrollHandler = new ScrollAnimationHandler(WheelView.this);
+        WheelViewGestureDetectorListener mGestureListener = new WheelViewGestureDetectorListener();
         mGestureDetector = new GestureDetector(context, mGestureListener);
         // Disable long press event.
         mGestureDetector.setIsLongpressEnabled(false);
@@ -538,23 +423,70 @@ public class WheelView extends View {
     public boolean onTouchEvent(MotionEvent event) {
         if (mItemList.size() > 0) {
             if (!mGestureDetector.onTouchEvent(event) && event.getAction() == MotionEvent.ACTION_UP) {
-                justify();
+                scrollJustify();
             }
         }
 
         return true;
     }
 
+    /**
+     * Set view content whether need cyclic scroll.
+     */
+    public void setIsCyclic(boolean isCyclic) {
+        mIsCyclic = isCyclic;
+    }
+
+    /**
+     * Clear handle message queue, and send a new message.
+     */
+    private void setNextMessage(int message) {
+        clearMessages();
+        mScrollHandler.sendEmptyMessage(message);
+    }
+
+    /**
+     * Clear message from Animation Handler.
+     */
+    private void clearMessages() {
+        mScrollHandler.removeMessages(MESSAGE_SCROLL);
+        mScrollHandler.removeMessages(MESSAGE_JUSTIFY);
+    }
+
+    /**
+     * Mark Scrolling flag as true.
+     */
+    private void startScrolling() {
+        if (!isScrollingPerformed) {
+            isScrollingPerformed = true;
+        }
+    }
+
+    /**
+     * Mark scrolling flag as false and set scrolling offset to zero.
+     */
+    private void finishScrolling() {
+        if (isScrollingPerformed) {
+            isScrollingPerformed = false;
+        }
+        mScrollingOffset = 0;
+    }
+
+    /**
+     * Re draw center item content and side item content depend on the scroll distance.
+     *
+     * @param delta scroll distance
+     */
     private void doScroll(int delta) {
         mScrollingOffset += delta;
 
         // 计算滚动的条目数,使滚动的值处于单个条目高度,注意计算整数值
-        int count = mScrollingOffset / getItemHeight();
+        int count = mScrollingOffset / mCenterItemHeight;
 
         // pos是滚动后的目标元素索引,计算滚动后位置,当前条目数加上滚动的条目数
         int pos = mSelectedPosition + count;
 
-        if (isCyclic) { // 循环滑动
+        if (mIsCyclic) { // 循环滑动
             while (pos < 0) {
                 pos += mItemList.size();
             }
@@ -587,30 +519,16 @@ public class WheelView extends View {
         }
 
         // 将滚动后剩余的小树部分保存
-        mScrollingOffset = offset - count * getItemHeight();
+        mScrollingOffset = offset - count * mCenterItemHeight;
         if (mScrollingOffset > getHeight()) {
             mScrollingOffset = mScrollingOffset % getHeight() + getHeight();
         }
     }
 
     /**
-     * 清空之前的Handler队列,发送下一个消息到Handler中.
+     * Scroll justify with
      */
-    private void setNextMessage(int message) {
-        clearMessages();
-        mAnimationHandler.sendEmptyMessage(message);
-    }
-
-    /**
-     * 清空队列中的信息
-     */
-    private void clearMessages() {
-        // 删除Handler执行队列中的滚动操作
-        mAnimationHandler.removeMessages(MESSAGE_SCROLL);
-        mAnimationHandler.removeMessages(MESSAGE_JUSTIFY);
-    }
-
-    private void justify() {
+    private void scrollJustify() {
         if (mItemList.size() <= 0) {
             return;
         }
@@ -618,7 +536,7 @@ public class WheelView extends View {
         // 补偿之前将Y轴位置设置为0,代表当前已经静止.
         mLastScrollY = 0;
         int offset = mScrollingOffset;
-        int itemHeight = getItemHeight();
+        int itemHeight = mCenterItemHeight;
 
         /**
          * 当前滚动补偿大于0,说明还有没有滚动的部分,needToIncrease是当前条目是否小于条目数
@@ -626,7 +544,7 @@ public class WheelView extends View {
          */
         boolean needToIncrease = offset > 0 ? mSelectedPosition < mItemList.size() - 1
                 : mSelectedPosition > 0;
-        if ((isCyclic || needToIncrease) && Math.abs((float) offset) > (float) itemHeight * 4 / 5) {
+        if ((mIsCyclic || needToIncrease) && Math.abs((float) offset) > (float) itemHeight * 4 / 5) {
             if (offset < 0) {
                 offset -= itemHeight + MIN_DELTA_FOR_SCROLLING;
             } else {
@@ -642,27 +560,119 @@ public class WheelView extends View {
     }
 
     /**
-     * 开始滚动.
+     * Special GestureDetectorListener for WheelView.
      */
-    private void startScrolling() {
-        if (!isScrollingPerformed) {
-            isScrollingPerformed = true;
+    private class WheelViewGestureDetectorListener extends GestureDetector.SimpleOnGestureListener {
+        @Override
+        public boolean onDown(MotionEvent e) {
+            // 如果滚动在执行
+            if (isScrollingPerformed) {
+                // 滚动强制停止,按下的时候不能继续滚动
+                mScroller.forceFinished(true);
+                // 清理信息
+                clearMessages();
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * 手势监听器监听到滚动操作后的回调.
+         *
+         * @param e1        触发滚动时第一次按下的事件.
+         * @param e2        触发滚动时的移动事件.
+         * @param distanceX 从上一次调用该方法到这一次x轴滚动的距离.
+         * @param distanceY 从上一次调用该方法到这一次y轴滚动的距离.
+         * @return 事件触发成功, 执行完方法中的操作, 返回true;否则,返回false.
+         */
+        @Override
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            startScrolling();
+            doScroll((int) distanceY);
+            return true;
+        }
+
+        /**
+         * 当一个急冲手势发生后回调该方法,会计算出该手势在x轴和y轴的速率.
+         *
+         * @param e1        急冲动作的第一次触摸事件.
+         * @param e2        急冲动作的移动发生的时候的触摸事件.
+         * @param velocityX x轴的速率.
+         * @param velocityY y轴的速率.
+         * @return 执行完毕返回true, 执行失败返回false.
+         */
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            // 计算上一次的y轴位置,当前条目高度加上剩余的不够一行高度的那部分
+            mLastScrollY = mSelectedPosition * mCenterItemHeight + mScrollingOffset;
+
+            // 如果可以循环最大值是无限大,不能循环就是条目数的高度值
+            int maxY = mIsCyclic ? 0x7FFFFFFF : mItemList.size() * mCenterItemHeight;
+            int minY = mIsCyclic ? -maxY : 0;
+
+            /**
+             * Scroll 开始根据一个急冲手势滚动,滚动距离与初速度相关
+             * 参数介绍：
+             * int startX：开始时的x轴位置
+             * int startY：开始时的y轴位置
+             * int velocityX：急冲手势的x轴的初速度,单位px/s
+             * int velocityY：急冲手势的y轴的初速度,单位px/s
+             * int minX：x轴滚动的最小值
+             * int maxX：x轴滚动的最大值
+             * int minY：y轴滚动的最小值
+             * int maxY：y轴滚动的最大值
+             */
+            mScroller.fling(0, mLastScrollY, 0, (int) velocityY / 2, 0, 0, minY, maxY);
+            setNextMessage(MESSAGE_SCROLL);
+            return true;
         }
     }
 
-    /**
-     * 结束滚动
-     */
-    private void finishScrolling() {
-        if (isScrollingPerformed) {
-            isScrollingPerformed = false;
+    private static class ScrollAnimationHandler extends Handler {
+        private WeakReference<WheelView> mWheelView;
+
+        public ScrollAnimationHandler(WheelView wheelView) {
+            mWheelView = new WeakReference<>(wheelView);
         }
 
-        // 重置偏移量
-        mScrollingOffset = 0;
+        @Override
+        public void handleMessage(Message msg) {
+            WheelView wheelView = mWheelView.get();
+            wheelView.handleScrollMsg(msg);
+        }
     }
 
-    private int getItemHeight() {
-        return mTouchChangeHeight;
+    public void handleScrollMsg(Message msg) {
+        // 回调该方法获取当前位置,如果返回true,说明动画还没有执行完毕
+        mScroller.computeScrollOffset();
+        // 获取当前y位置
+        int currY = mScroller.getCurrY();
+        // 获取已经滚动的位置,使用上一次位置减去当前位置
+        int delta = mLastScrollY - currY;
+        mLastScrollY = currY;
+        if (delta != 0) {
+            // 改变值不为0,继续滚动
+            doScroll(delta);
+        }
+
+        /**
+         * 如果滚动到了指定的位置,滚动还没有停止
+         * 这时需要强制停止
+         */
+        if (Math.abs(currY - mScroller.getFinalY()) < MIN_DELTA_FOR_SCROLLING) {
+            mScroller.forceFinished(true);
+        }
+
+        /**
+         * 如果滚动没有停止
+         * 再向Handler发送一个停止
+         */
+        if (!mScroller.isFinished()) {
+            mScrollHandler.sendEmptyMessage(msg.what);
+        } else if (msg.what == MESSAGE_SCROLL) {
+            scrollJustify();
+        } else { // MESSAGE_JUSTIFY
+            finishScrolling();
+        }
     }
 }
