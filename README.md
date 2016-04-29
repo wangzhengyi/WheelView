@@ -53,6 +53,10 @@ Handler处理MSG事件流程:
 ![AnimationHandler](https://github.com/wangzhengyi/WheelView/raw/master/screenshots/AnimationHandler.png)
 
 
+## View弹性滑动详解
+
+![View弹性滑动](https://github.com/wangzhengyi/WheelView/raw/master/Scroll.md)
+
 # License
 >Copyright 2014 Wang Zhengyi
 >
