@@ -58,3 +58,14 @@ public void scrollBy(int x, int y) {
 
 缺陷:
 >虽然调用View的scrollBy和scrollTo方法可以很方便的实现View的滚动,但是这种滚动是瞬间完成的(调用invalidate方法),没有弹性滑动的效果,为了达到弹性滑动的目的,我们开始介绍本篇文章的主角:Scroller.
+
+-----
+# Scroller
+
+在介绍Scroller之前,我们需要明确知道:
+**Scroller代码和View代码完全解耦,Scroller代码本身不会引起View的滑动,通过Scroller代码,我们可以平滑的获取当前View需要滑动的位置,然后调用View的scrollTo/scrollBy进行移动**.
+
+Scroller源码如下:
+
+
+
