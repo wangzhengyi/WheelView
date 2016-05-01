@@ -6,81 +6,31 @@ import android.view.ViewConfiguration;
 import android.view.animation.AnimationUtils;
 import android.view.animation.Interpolator;
 
-/** 平滑滑动封装类. */
-public class Scroller  {
-    private final Interpolator mInterpolator;
-
+/**
+ * 平滑滑动封装类.
+ */
+public class Scroller {
     /**
-     * 滚动模式,包括SCROLL_MODE和FLING_MODE.
-     * 对应的方法分别为:startScroll和fling
+     * 默认本次滑动的持续实现.
      */
-    private int mMode;
-
-    /** x轴方向起始坐标. */
-    private int mStartX;
-
-    /** y轴方向起始坐标. */
-    private int mStartY;
-
-    /** x轴方向滑动终止点的x轴坐标. */
-    private int mFinalX;
-
-    /** y轴方向滑动终止点的y轴坐标. */
-    private int mFinalY;
-
-    private int mMinX;
-    private int mMaxX;
-    private int mMinY;
-    private int mMaxY;
-
-    /** 当前view应该滑动到的x轴坐标. */
-    private int mCurrX;
-
-    /** 当前view应该滑动到的y轴坐标. */
-    private int mCurrY;
-
-    /** View滑动的起始时间. */
-    private long mStartTime;
-
-    /** 滑动过程的总时间. */
-    private int mDuration;
-    private float mDurationReciprocal;
-    private float mDeltaX;
-    private float mDeltaY;
-    private boolean mFinished;
-    private boolean mFlywheel;
-
-    private float mVelocity;
-    private float mCurrVelocity;
-    private int mDistance;
-
-    private float mFlingFriction = ViewConfiguration.getScrollFriction();
-
-    /** 默认本次滑动的持续实现. */
     private static final int DEFAULT_DURATION = 250;
-
-    /** 滚动模式. */
+    /**
+     * 滚动模式.
+     */
     private static final int SCROLL_MODE = 0;
-
-    /** 抛掷模式. */
+    /**
+     * 抛掷模式.
+     */
     private static final int FLING_MODE = 1;
-
-    private static float DECELERATION_RATE = (float) (Math.log(0.78) / Math.log(0.9));
     private static final float INFLEXION = 0.35f; // Tension lines cross at (INFLEXION, 1)
     private static final float START_TENSION = 0.5f;
     private static final float END_TENSION = 1.0f;
     private static final float P1 = START_TENSION * INFLEXION;
     private static final float P2 = 1.0f - END_TENSION * (1.0f - INFLEXION);
-
     private static final int NB_SAMPLES = 100;
     private static final float[] SPLINE_POSITION = new float[NB_SAMPLES + 1];
     private static final float[] SPLINE_TIME = new float[NB_SAMPLES + 1];
-
-    private float mDeceleration;
-    private final float mPpi;
-
-    // A context-specific coefficient adjusted to physical values.
-    private float mPhysicalCoeff;
+    private static float DECELERATION_RATE = (float) (Math.log(0.78) / Math.log(0.9));
 
     static {
         float x_min = 0.0f;
@@ -115,18 +65,80 @@ public class Scroller  {
         SPLINE_POSITION[NB_SAMPLES] = SPLINE_TIME[NB_SAMPLES] = 1.0f;
     }
 
-    /** 使用默认的滑动时间和插值器构造Scroller. */
+    private final Interpolator mInterpolator;
+    private final float mPpi;
+    /**
+     * 滚动模式,包括SCROLL_MODE和FLING_MODE.
+     * 对应的方法分别为:startScroll和fling
+     */
+    private int mMode;
+    /**
+     * x轴方向起始坐标.
+     */
+    private int mStartX;
+    /**
+     * y轴方向起始坐标.
+     */
+    private int mStartY;
+    /**
+     * x轴方向滑动终止点的x轴坐标.
+     */
+    private int mFinalX;
+    /**
+     * y轴方向滑动终止点的y轴坐标.
+     */
+    private int mFinalY;
+    private int mMinX;
+    private int mMaxX;
+    private int mMinY;
+    private int mMaxY;
+    /**
+     * 当前view应该滑动到的x轴坐标.
+     */
+    private int mCurrX;
+    /**
+     * 当前view应该滑动到的y轴坐标.
+     */
+    private int mCurrY;
+    /**
+     * View滑动的起始时间.
+     */
+    private long mStartTime;
+    /**
+     * 滑动过程的总时间.
+     */
+    private int mDuration;
+    private float mDurationReciprocal;
+    private float mDeltaX;
+    private float mDeltaY;
+    private boolean mFinished;
+    private boolean mFlywheel;
+    private float mVelocity;
+    private float mCurrVelocity;
+    private int mDistance;
+    private float mFlingFriction = ViewConfiguration.getScrollFriction();
+    private float mDeceleration;
+    // A context-specific coefficient adjusted to physical values.
+    private float mPhysicalCoeff;
+
+    /**
+     * 使用默认的滑动时间和插值器构造Scroller.
+     */
     public Scroller(Context context) {
         this(context, null);
     }
 
-    /** 使用给定的插值器来构造Scroller. */
+    /**
+     * 使用给定的插值器来构造Scroller.
+     */
     public Scroller(Context context, Interpolator interpolator) {
         this(context, interpolator,
                 context.getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.HONEYCOMB);
     }
 
-    /** 使用给定的插值器来构造Scroller.Android3.0以上的版本支持"flywheel"的行为. */
+    /**
+     * 使用给定的插值器来构造Scroller.Android3.0以上的版本支持"flywheel"的行为.
+     */
     public Scroller(Context context, Interpolator interpolator, boolean flywheel) {
         mFinished = true;
         if (interpolator == null) {
@@ -144,177 +156,188 @@ public class Scroller  {
     /**
      * The amount of friction applied to flings. The default value
      * is {@link ViewConfiguration#getScrollFriction}.
-     * 
+     *
      * @param friction A scalar dimension-less value representing the coefficient of
-     *         friction.
+     *                 friction.
      */
     public final void setFriction(float friction) {
         mDeceleration = computeDeceleration(friction);
         mFlingFriction = friction;
     }
-    
+
     private float computeDeceleration(float friction) {
         return SensorManager.GRAVITY_EARTH   // g (m/s^2)
-                      * 39.37f               // inch/meter
-                      * mPpi                 // pixels per inch
-                      * friction;
+                * 39.37f               // inch/meter
+                * mPpi                 // pixels per inch
+                * friction;
     }
 
     /**
-     * 
-     * Returns whether the scroller has finished scrolling.
-     * 
-     * @return True if the scroller has finished scrolling, false otherwise.
+     * 当前View滑动是否已经停止.
      */
     public final boolean isFinished() {
         return mFinished;
     }
-    
+
     /**
-     * Force the finished field to a particular value.
-     *  
-     * @param finished The new finished value.
+     * 设置强制停止标志位.强制停止,则computeScrollOffset不再计算后续移动位置.
      */
     public final void forceFinished(boolean finished) {
         mFinished = finished;
     }
 
-    /** 返回滑动过程的时间. */
+    /**
+     * 返回滑动过程的时间.
+     */
     public final int getDuration() {
         return mDuration;
     }
 
-    /** 返回当前View在x轴应该滑动到的坐标. */
+    /**
+     * 返回当前View在x轴应该滑动到的坐标.
+     */
     public final int getCurrX() {
         return mCurrX;
     }
 
-    /** 返回当前View在y轴应该滑动到的坐标. */
+    /**
+     * 返回当前View在y轴应该滑动到的坐标.
+     */
     public final int getCurrY() {
         return mCurrY;
     }
-    
+
     /**
-     * Returns the current velocity.
-     *
-     * @return The original velocity less the deceleration. Result may be
-     * negative.
+     * 获取当前的滑行速率.
      */
     public float getCurrVelocity() {
         return mMode == FLING_MODE ?
                 mCurrVelocity : mVelocity - mDeceleration * timePassed() / 2000.0f;
     }
 
-    /** 返回滑动起始点的x轴坐标. */
+    /**
+     * 返回滑动起始点的x轴坐标.
+     */
     public final int getStartX() {
         return mStartX;
     }
 
-    /** 返回滑动起始点的y轴坐标. */
+    /**
+     * 返回滑动起始点的y轴坐标.
+     */
     public final int getStartY() {
         return mStartY;
     }
-    
-    /** View滑动的x轴终点坐标. */
+
+    /**
+     * View滑动的x轴终点坐标.
+     */
     public final int getFinalX() {
         return mFinalX;
     }
-    
-    /** View滑动的y轴终点坐标. */
+
+    /**
+     * Sets the final position (X) for this scroller.
+     *
+     * @param newX The new X offset as an absolute distance from the origin.
+     * @see #extendDuration(int)
+     * @see #setFinalY(int)
+     */
+    public void setFinalX(int newX) {
+        mFinalX = newX;
+        mDeltaX = mFinalX - mStartX;
+        mFinished = false;
+    }
+
+    /**
+     * View滑动的y轴终点坐标.
+     */
     public final int getFinalY() {
         return mFinalY;
     }
 
     /**
+     * Sets the final position (Y) for this scroller.
+     *
+     * @param newY The new Y offset as an absolute distance from the origin.
+     * @see #extendDuration(int)
+     * @see #setFinalX(int)
+     */
+    public void setFinalY(int newY) {
+        mFinalY = newY;
+        mDeltaY = mFinalY - mStartY;
+        mFinished = false;
+    }
+
+    /**
      * Call this when you want to know the new location.  If it returns true,
      * the animation is not yet finished.
-     */ 
+     */
     public boolean computeScrollOffset() {
         if (mFinished) {
             return false;
         }
 
-        int timePassed = (int)(AnimationUtils.currentAnimationTimeMillis() - mStartTime);
-    
+        int timePassed = (int) (AnimationUtils.currentAnimationTimeMillis() - mStartTime);
+
         if (timePassed < mDuration) {
             switch (mMode) {
-            case SCROLL_MODE:
-                final float x = mInterpolator.getInterpolation(timePassed * mDurationReciprocal);
-                mCurrX = mStartX + Math.round(x * mDeltaX);
-                mCurrY = mStartY + Math.round(x * mDeltaY);
-                break;
-            case FLING_MODE:
-                final float t = (float) timePassed / mDuration;
-                final int index = (int) (NB_SAMPLES * t);
-                float distanceCoef = 1.f;
-                float velocityCoef = 0.f;
-                if (index < NB_SAMPLES) {
-                    final float t_inf = (float) index / NB_SAMPLES;
-                    final float t_sup = (float) (index + 1) / NB_SAMPLES;
-                    final float d_inf = SPLINE_POSITION[index];
-                    final float d_sup = SPLINE_POSITION[index + 1];
-                    velocityCoef = (d_sup - d_inf) / (t_sup - t_inf);
-                    distanceCoef = d_inf + (t - t_inf) * velocityCoef;
-                }
+                case SCROLL_MODE:
+                    final float x = mInterpolator.getInterpolation(timePassed * mDurationReciprocal);
+                    mCurrX = mStartX + Math.round(x * mDeltaX);
+                    mCurrY = mStartY + Math.round(x * mDeltaY);
+                    break;
+                case FLING_MODE:
+                    final float t = (float) timePassed / mDuration;
+                    final int index = (int) (NB_SAMPLES * t);
+                    float distanceCoef = 1.f;
+                    float velocityCoef = 0.f;
+                    if (index < NB_SAMPLES) {
+                        final float t_inf = (float) index / NB_SAMPLES;
+                        final float t_sup = (float) (index + 1) / NB_SAMPLES;
+                        final float d_inf = SPLINE_POSITION[index];
+                        final float d_sup = SPLINE_POSITION[index + 1];
+                        velocityCoef = (d_sup - d_inf) / (t_sup - t_inf);
+                        distanceCoef = d_inf + (t - t_inf) * velocityCoef;
+                    }
 
-                mCurrVelocity = velocityCoef * mDistance / mDuration * 1000.0f;
-                
-                mCurrX = mStartX + Math.round(distanceCoef * (mFinalX - mStartX));
-                // Pin to mMinX <= mCurrX <= mMaxX
-                mCurrX = Math.min(mCurrX, mMaxX);
-                mCurrX = Math.max(mCurrX, mMinX);
-                
-                mCurrY = mStartY + Math.round(distanceCoef * (mFinalY - mStartY));
-                // Pin to mMinY <= mCurrY <= mMaxY
-                mCurrY = Math.min(mCurrY, mMaxY);
-                mCurrY = Math.max(mCurrY, mMinY);
+                    mCurrVelocity = velocityCoef * mDistance / mDuration * 1000.0f;
 
-                if (mCurrX == mFinalX && mCurrY == mFinalY) {
-                    mFinished = true;
-                }
+                    mCurrX = mStartX + Math.round(distanceCoef * (mFinalX - mStartX));
+                    // Pin to mMinX <= mCurrX <= mMaxX
+                    mCurrX = Math.min(mCurrX, mMaxX);
+                    mCurrX = Math.max(mCurrX, mMinX);
 
-                break;
+                    mCurrY = mStartY + Math.round(distanceCoef * (mFinalY - mStartY));
+                    // Pin to mMinY <= mCurrY <= mMaxY
+                    mCurrY = Math.min(mCurrY, mMaxY);
+                    mCurrY = Math.max(mCurrY, mMinY);
+
+                    if (mCurrX == mFinalX && mCurrY == mFinalY) {
+                        mFinished = true;
+                    }
+
+                    break;
             }
-        }
-        else {
+        } else {
             mCurrX = mFinalX;
             mCurrY = mFinalY;
             mFinished = true;
         }
         return true;
     }
-    
-    /**
-     * Start scrolling by providing a starting point and the distance to travel.
-     * The scroll will use the default value of 250 milliseconds for the
-     * duration.
-     * 
-     * @param startX Starting horizontal scroll offset in pixels. Positive
-     *        numbers will scroll the content to the left.
-     * @param startY Starting vertical scroll offset in pixels. Positive numbers
-     *        will scroll the content up.
-     * @param dx Horizontal distance to travel. Positive numbers will scroll the
-     *        content to the left.
-     * @param dy Vertical distance to travel. Positive numbers will scroll the
-     *        content up.
-     */
-    public void startScroll(int startX, int startY, int dx, int dy) {
-        startScroll(startX, startY, dx, dy, DEFAULT_DURATION);
-    }
 
     /**
-     * Start scrolling by providing a starting point, the distance to travel,
-     * and the duration of the scroll.
-     * 
-     * @param startX Starting horizontal scroll offset in pixels. Positive
-     *        numbers will scroll the content to the left.
-     * @param startY Starting vertical scroll offset in pixels. Positive numbers
-     *        will scroll the content up.
-     * @param dx Horizontal distance to travel. Positive numbers will scroll the
-     *        content to the left.
-     * @param dy Vertical distance to travel. Positive numbers will scroll the
-     *        content up.
-     * @param duration Duration of the scroll in milliseconds.
+     * 给定滚动起始点坐标,在指定的时间内滚动指定的偏移量.
+     * 距离计算:
+     * dx=view左边缘-view内容左边缘;dx为正,代表内容向左移动;dx为负,代表内容向右移动.
+     * dy=view上边缘-view内容上边缘;dy为正,代表内容向上移动;dx为负,代表内容向下移动.
+     *
+     * @param startX   x轴方向滚动起始点坐标.
+     * @param startY   y轴方向滚动起始点坐标.
+     * @param dx       x轴方向滚动距离.
+     * @param dy       y轴方向滚动距离.
+     * @param duration 滚动持续的时间(默认滚动时间为250ms).
      */
     public void startScroll(int startX, int startY, int dx, int dy, int duration) {
         mMode = SCROLL_MODE;
@@ -333,31 +356,31 @@ public class Scroller  {
     /**
      * Start scrolling based on a fling gesture. The distance travelled will
      * depend on the initial velocity of the fling.
-     * 
-     * @param startX Starting point of the scroll (X)
-     * @param startY Starting point of the scroll (Y)
+     *
+     * @param startX    Starting point of the scroll (X)
+     * @param startY    Starting point of the scroll (Y)
      * @param velocityX Initial velocity of the fling (X) measured in pixels per
-     *        second.
+     *                  second.
      * @param velocityY Initial velocity of the fling (Y) measured in pixels per
-     *        second
-     * @param minX Minimum X value. The scroller will not scroll past this
-     *        point.
-     * @param maxX Maximum X value. The scroller will not scroll past this
-     *        point.
-     * @param minY Minimum Y value. The scroller will not scroll past this
-     *        point.
-     * @param maxY Maximum Y value. The scroller will not scroll past this
-     *        point.
+     *                  second
+     * @param minX      Minimum X value. The scroller will not scroll past this
+     *                  point.
+     * @param maxX      Maximum X value. The scroller will not scroll past this
+     *                  point.
+     * @param minY      Minimum Y value. The scroller will not scroll past this
+     *                  point.
+     * @param maxY      Maximum Y value. The scroller will not scroll past this
+     *                  point.
      */
     public void fling(int startX, int startY, int velocityX, int velocityY,
-            int minX, int maxX, int minY, int maxY) {
+                      int minX, int maxX, int minY, int maxY) {
         // Continue a scroll or fling in progress
         if (mFlywheel && !mFinished) {
             float oldVel = getCurrVelocity();
 
             float dx = (float) (mFinalX - mStartX);
             float dy = (float) (mFinalY - mStartY);
-            float hyp = FloatMath.sqrt(dx * dx + dy * dy);
+            float hyp = (float) Math.sqrt(dx * dx + dy * dy);
 
             float ndx = dx / hyp;
             float ndy = dy / hyp;
@@ -374,8 +397,8 @@ public class Scroller  {
         mMode = FLING_MODE;
         mFinished = false;
 
-        float velocity = FloatMath.sqrt(velocityX * velocityX + velocityY * velocityY);
-     
+        float velocity = (float) Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+
         mVelocity = velocity;
         mDuration = getSplineFlingDuration(velocity);
         mStartTime = AnimationUtils.currentAnimationTimeMillis();
@@ -387,7 +410,7 @@ public class Scroller  {
 
         double totalDistance = getSplineFlingDistance(velocity);
         mDistance = (int) (totalDistance * Math.signum(velocity));
-        
+
         mMinX = minX;
         mMaxX = maxX;
         mMinY = minY;
@@ -397,13 +420,13 @@ public class Scroller  {
         // Pin to mMinX <= mFinalX <= mMaxX
         mFinalX = Math.min(mFinalX, mMaxX);
         mFinalX = Math.max(mFinalX, mMinX);
-        
+
         mFinalY = startY + (int) Math.round(totalDistance * coeffY);
         // Pin to mMinY <= mFinalY <= mMaxY
         mFinalY = Math.min(mFinalY, mMaxY);
         mFinalY = Math.max(mFinalY, mMinY);
     }
-    
+
     private double getSplineDeceleration(float velocity) {
         return Math.log(INFLEXION * Math.abs(velocity) / (mFlingFriction * mPhysicalCoeff));
     }
@@ -432,7 +455,7 @@ public class Scroller  {
         mCurrY = mFinalY;
         mFinished = true;
     }
-    
+
     /**
      * Extend the scroll animation. This allows a running animation to scroll
      * further and longer, when used with {@link #setFinalX(int)} or {@link #setFinalY(int)}.
@@ -454,33 +477,7 @@ public class Scroller  {
      * @return The elapsed time in milliseconds.
      */
     public int timePassed() {
-        return (int)(AnimationUtils.currentAnimationTimeMillis() - mStartTime);
-    }
-
-    /**
-     * Sets the final position (X) for this scroller.
-     *
-     * @param newX The new X offset as an absolute distance from the origin.
-     * @see #extendDuration(int)
-     * @see #setFinalY(int)
-     */
-    public void setFinalX(int newX) {
-        mFinalX = newX;
-        mDeltaX = mFinalX - mStartX;
-        mFinished = false;
-    }
-
-    /**
-     * Sets the final position (Y) for this scroller.
-     *
-     * @param newY The new Y offset as an absolute distance from the origin.
-     * @see #extendDuration(int)
-     * @see #setFinalX(int)
-     */
-    public void setFinalY(int newY) {
-        mFinalY = newY;
-        mDeltaY = mFinalY - mStartY;
-        mFinished = false;
+        return (int) (AnimationUtils.currentAnimationTimeMillis() - mStartTime);
     }
 
     /**
@@ -492,7 +489,9 @@ public class Scroller  {
     }
 
     static class ViscousFluidInterpolator implements Interpolator {
-        /** Controls the viscous fluid effect (how much of it). */
+        /**
+         * Controls the viscous fluid effect (how much of it).
+         */
         private static final float VISCOUS_FLUID_SCALE = 8.0f;
 
         private static final float VISCOUS_FLUID_NORMALIZE;
@@ -509,10 +508,10 @@ public class Scroller  {
         private static float viscousFluid(float x) {
             x *= VISCOUS_FLUID_SCALE;
             if (x < 1.0f) {
-                x -= (1.0f - (float)Math.exp(-x));
+                x -= (1.0f - (float) Math.exp(-x));
             } else {
                 float start = 0.36787944117f;   // 1/e == exp(-1)
-                x = 1.0f - (float)Math.exp(1.0f - x);
+                x = 1.0f - (float) Math.exp(1.0f - x);
                 x = start + x * (1.0f - start);
             }
             return x;
