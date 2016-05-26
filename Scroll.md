@@ -65,7 +65,179 @@ public void scrollBy(int x, int y) {
 在介绍Scroller之前,我们需要明确知道:
 **Scroller代码和View代码完全解耦,Scroller代码本身不会引起View的滑动,通过Scroller代码,我们可以平滑的获取当前View需要滑动的位置,然后调用View的scrollTo/scrollBy进行移动**.
 
-Scroller源码如下:
+## 构造函数
+
+我们先来看一下Scroller的构造函数注释源码:
+```java
+/**
+ * 使用默认的滑动时间和插值器构造Scroller.
+ */
+public Scroller(Context context) {
+    this(context, null);
+}
+
+/**
+ * 使用给定的插值器来构造Scroller.
+ */
+public Scroller(Context context, Interpolator interpolator) {
+    this(context, interpolator,
+            context.getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.HONEYCOMB);
+}
+
+/**
+ * 使用给定的插值器来构造Scroller.Android3.0以上的版本支持"flywheel"的行为.
+ */
+public Scroller(Context context, Interpolator interpolator, boolean flywheel) {
+    // 设置滑动停止标识位为true
+    mFinished = true;
+    // 构造插值器
+    if (interpolator == null) {
+        mInterpolator = new ViscousFluidInterpolator();
+    } else {
+        mInterpolator = interpolator;
+    }
+
+    // 获取屏幕的密度(每英寸的像素数)
+    mPpi = context.getResources().getDisplayMetrics().density * 160.0f;
+    // 计算摩擦力
+    mDeceleration = computeDeceleration(ViewConfiguration.getScrollFriction());
+    // 标记是否支持flying模式
+    mFlywheel = flywheel;
+
+    mPhysicalCoeff = computeDeceleration(0.84f); // look and feel tuning
+}
+```
+
+## 两种模式
+
+Scroller支持两种模式的滑动,分别是:
+
+* SCROLL_MODE:调用startScroll,正常滚动模式.
+* FLING_MODE:调用fling,抛掷模式.
+
+接下来,针对这两种模式进行分别讲解.
+
+### SCROLL_MODE
+
+我们直接看一下startScroll的源码做了哪些事情:
+```java
+/**
+ * 给定滚动起始点坐标,在指定的时间内滚动指定的偏移量.
+ * 距离计算:
+ * dx=view左边缘-view内容左边缘;dx为正,代表内容向左移动;dx为负,代表内容向右移动.
+ * dy=view上边缘-view内容上边缘;dy为正,代表内容向上移动;dx为负,代表内容向下移动.
+ *
+ * @param startX   x轴方向滚动起始点坐标.
+ * @param startY   y轴方向滚动起始点坐标.
+ * @param dx       x轴方向滚动距离.
+ * @param dy       y轴方向滚动距离.
+ * @param duration 滚动持续的时间(默认滚动时间为250ms).
+ */
+public void startScroll(int startX, int startY, int dx, int dy, int duration) {
+    mMode = SCROLL_MODE;
+    mFinished = false;
+    mDuration = duration;
+    mStartTime = AnimationUtils.currentAnimationTimeMillis();
+    mStartX = startX;
+    mStartY = startY;
+    mFinalX = startX + dx;
+    mFinalY = startY + dy;
+    mDeltaX = dx;
+    mDeltaY = dy;
+    // 持续时间的倒数,用来得到的插值器返回的值
+    mDurationReciprocal = 1.0f / (float) mDuration;
+}
+```
+
+通过注释的源码,我们可以验证最初的结论:Scroller和View完全解耦,Scroller并不会直接控制View的滑动,它只是为View提供滑动的参数.具体参数包括:
+
+* mMode: 设置为滑动模式.
+* mFinished: 设置滑动结束标识为false.
+* mDuration: 设置滑动时间间隔.
+* mStartTime: 设置滑动的起始时间.
+* mStartX: 设置x轴的起始点坐标.
+* mStartY: 设置Y轴的起始点坐标
+* mFinalX: 设置x轴的终点坐标.
+* mFinalY: 设置y轴的终点坐标.
+* mDeltaX: 设置x轴的滑动距离.
+* mDeltaY: 设置y轴的滑动距离.
+* mDurationReciprocal: 设置时间的倒数.
+
+#### computeScrollOffset
+
+之所以这里提前介绍computeScrollOffset函数,是因为View只有配合computeScrollOffset函数,才能实现真正的滑动.源码中跟SCROLL_MODE相关代码如下：
+```java
+public boolean computeScrollOffset() {
+    // 如果已经结束,直接返回false.
+    if (mFinished) {
+        return false;
+    }
+
+    // 计算已经度过的时间.
+    int timePassed = (int) (AnimationUtils.currentAnimationTimeMillis() - mStartTime);
+
+    if (timePassed < mDuration) {
+        switch (mMode) {
+            // 处理滚动模式
+            case SCROLL_MODE:
+                // 根据过度的时间计算偏移比例
+                final float x = mInterpolator.getInterpolation(timePassed * mDurationReciprocal);
+                mCurrX = mStartX + Math.round(x * mDeltaX);
+                mCurrY = mStartY + Math.round(x * mDeltaY);
+                break;
+            // 处理fling模式......
+        }
+    } else {
+        // 当时间结束时,直接将x和y坐标置为终止状态的x和y坐标,同时将终止标志位置为true.
+        mCurrX = mFinalX;
+        mCurrY = mFinalY;
+        mFinished = true;
+    }
+    return true;
+}
+```
+可以看出,computeScrollOffset也只是根据时间偏移计算x轴和y轴应该到达的坐标.
+
+#### SCROLL_MODE实战
+
+介绍了SCROLL_MODE的具体实现,接下来就通过代码演示一下Scroller是如何和View进行互动的.这里提供一个例子,在40秒内将TextView的内容在x轴向右移动400:
+```java
+private void initScrollCase() {
+    mImageView = (ImageView) findViewById(R.id.id_img_tv);
+    // 获取起始滑动点坐标
+    int startX = mImageView.getScrollX();
+    int startY = mImageView.getScrollY();
+    mScroller = new Scroller(getApplicationContext());
+    Log.e("zhengyi.wzy", "startX=" + startX + ", startY=" + startY);
+    mScroller.startScroll(startX, startY, -400, 0, 40000);
+    mImageView.setOnClickListener(new View.OnClickListener() {
+
+        @Override
+        public void onClick(View v) {
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    boolean isFinished = mScroller.computeScrollOffset();
+                    if (!isFinished) {
+                        return;
+                    }
+                    // 获取当前滑动点坐标
+                    int x = mScroller.getCurrX();
+                    int y = mScroller.getCurrY();
+                    mImageView.scrollTo(x, y);
+                    mHandler.postDelayed(this, 25);
+                }
+            }, 25);
+        }
+    });
+}
+```
+
+**千万注意:起始点是View.getScrollX()和View.getScrollY(),而不是View.getLeft()或者View.getTop()**
+
+### SCROLL_FLING
+Scroller还提供一种FLING模式,我认为它的中文翻译已经叫“抛掷模式”. 
+
 
 
 
