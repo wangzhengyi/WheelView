@@ -1,7 +1,6 @@
 import android.content.Context;
 import android.hardware.SensorManager;
 import android.os.Build;
-import android.util.FloatMath;
 import android.view.ViewConfiguration;
 import android.view.animation.AnimationUtils;
 import android.view.animation.Interpolator;
@@ -140,14 +139,20 @@ public class Scroller {
      * 使用给定的插值器来构造Scroller.Android3.0以上的版本支持"flywheel"的行为.
      */
     public Scroller(Context context, Interpolator interpolator, boolean flywheel) {
+        // 设置滑动停止标识位为true
         mFinished = true;
+        // 构造插值器
         if (interpolator == null) {
             mInterpolator = new ViscousFluidInterpolator();
         } else {
             mInterpolator = interpolator;
         }
+
+        // 获取屏幕的密度(每英寸的像素数)
         mPpi = context.getResources().getDisplayMetrics().density * 160.0f;
+        // 计算摩擦力
         mDeceleration = computeDeceleration(ViewConfiguration.getScrollFriction());
+        // 标记是否支持flying模式
         mFlywheel = flywheel;
 
         mPhysicalCoeff = computeDeceleration(0.84f); // look and feel tuning
@@ -270,24 +275,29 @@ public class Scroller {
     }
 
     /**
-     * Call this when you want to know the new location.  If it returns true,
-     * the animation is not yet finished.
+     * 用来返回当前View需要移动到的x轴和y轴坐标.
      */
     public boolean computeScrollOffset() {
+        // 如果已经结束,直接返回false.
         if (mFinished) {
             return false;
         }
 
+        // 计算已经度过的时间.
         int timePassed = (int) (AnimationUtils.currentAnimationTimeMillis() - mStartTime);
 
         if (timePassed < mDuration) {
             switch (mMode) {
+                // 处理滚动模式
                 case SCROLL_MODE:
+                    // 根据过度的时间计算偏移比例
                     final float x = mInterpolator.getInterpolation(timePassed * mDurationReciprocal);
                     mCurrX = mStartX + Math.round(x * mDeltaX);
                     mCurrY = mStartY + Math.round(x * mDeltaY);
                     break;
+                // 处理fling模式
                 case FLING_MODE:
+                    // 获取当前滑动时间与总时间的比例
                     final float t = (float) timePassed / mDuration;
                     final int index = (int) (NB_SAMPLES * t);
                     float distanceCoef = 1.f;
@@ -320,6 +330,7 @@ public class Scroller {
                     break;
             }
         } else {
+            // 当时间结束时,直接将x和y坐标置为终止状态的x和y坐标,同时将终止标志位置为true.
             mCurrX = mFinalX;
             mCurrY = mFinalY;
             mFinished = true;
@@ -350,6 +361,7 @@ public class Scroller {
         mFinalY = startY + dy;
         mDeltaX = dx;
         mDeltaY = dy;
+        // 持续时间的倒数,用来得到的插值器返回的值
         mDurationReciprocal = 1.0f / (float) mDuration;
     }
 
@@ -357,36 +369,33 @@ public class Scroller {
      * Start scrolling based on a fling gesture. The distance travelled will
      * depend on the initial velocity of the fling.
      *
-     * @param startX    Starting point of the scroll (X)
-     * @param startY    Starting point of the scroll (Y)
-     * @param velocityX Initial velocity of the fling (X) measured in pixels per
-     *                  second.
-     * @param velocityY Initial velocity of the fling (Y) measured in pixels per
-     *                  second
-     * @param minX      Minimum X value. The scroller will not scroll past this
-     *                  point.
-     * @param maxX      Maximum X value. The scroller will not scroll past this
-     *                  point.
-     * @param minY      Minimum Y value. The scroller will not scroll past this
-     *                  point.
-     * @param maxY      Maximum Y value. The scroller will not scroll past this
-     *                  point.
+     * @param startX    x轴的起始坐标.
+     * @param startY    y轴的起始坐标.
+     * @param velocityX x轴方向的初始速率.
+     * @param velocityY y轴方向的初始速率.
+     * @param minX      x轴终点最小值.
+     * @param maxX      x轴终点最大值.
+     * @param minY      y轴终点最小值.
+     * @param maxY      y轴终点最大值.
      */
     public void fling(int startX, int startY, int velocityX, int velocityY,
                       int minX, int maxX, int minY, int maxY) {
-        // Continue a scroll or fling in progress
+        // 如果上次滑动也是FLING_MODE并且滑动没有结束
         if (mFlywheel && !mFinished) {
+            // 获取之前的总速率
             float oldVel = getCurrVelocity();
 
             float dx = (float) (mFinalX - mStartX);
             float dy = (float) (mFinalY - mStartY);
             float hyp = (float) Math.sqrt(dx * dx + dy * dy);
-
             float ndx = dx / hyp;
             float ndy = dy / hyp;
 
+            // 通过距离比例计算出x轴和y轴的速率
             float oldVelocityX = ndx * oldVel;
             float oldVelocityY = ndy * oldVel;
+
+            // 如果速率方向相同,则进行速率累加
             if (Math.signum(velocityX) == Math.signum(oldVelocityX) &&
                     Math.signum(velocityY) == Math.signum(oldVelocityY)) {
                 velocityX += oldVelocityX;
@@ -394,23 +403,33 @@ public class Scroller {
             }
         }
 
+        // 设置模式为FLING_MODE
         mMode = FLING_MODE;
+        // 设置结束标志位为false.
         mFinished = false;
 
+        // 根据勾股定理获取总的速率
         float velocity = (float) Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-
         mVelocity = velocity;
+
+        // 通过速率获取滑动的持续时间
         mDuration = getSplineFlingDuration(velocity);
+
+        // 获取滑动起始时间
         mStartTime = AnimationUtils.currentAnimationTimeMillis();
+
+        // 获取起始x轴和y轴坐标
         mStartX = startX;
         mStartY = startY;
 
         float coeffX = velocity == 0 ? 1.0f : velocityX / velocity;
         float coeffY = velocity == 0 ? 1.0f : velocityY / velocity;
 
+        // 获取最大滑动距离
         double totalDistance = getSplineFlingDistance(velocity);
         mDistance = (int) (totalDistance * Math.signum(velocity));
 
+        // 计算终点的x轴和y轴坐标
         mMinX = minX;
         mMaxX = maxX;
         mMinY = minY;

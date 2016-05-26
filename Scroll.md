@@ -1,6 +1,6 @@
 # View弹性滑动详解
 
-之前写了一个滚动选择控件![WheelView](https://github.com/wangzhengyi/WheelView),在这个控件中我设计了弹性滚动的实现机制,这里将实现方法和原理性的东西分享给大家.
+之前写了一个滚动选择控件[WheelView](https://github.com/wangzhengyi/WheelView),在这个控件中我设计了弹性滚动的实现机制,这里将实现方法和原理性的东西分享给大家.
 再了解View弹性滚动之前,我们先来学习一下View滚动机制的实现.
 
 -----
@@ -235,9 +235,154 @@ private void initScrollCase() {
 
 **千万注意:起始点是View.getScrollX()和View.getScrollY(),而不是View.getLeft()或者View.getTop()**
 
-### SCROLL_FLING
-Scroller还提供一种FLING模式,我认为它的中文翻译已经叫“抛掷模式”. 
+### FLING_MODE
+Scroller还提供一种FLING模式,我认为它的中文翻译应该叫“抛掷模式”.fling的英文注释源码如下:
+```java
+/**
+ * Start scrolling based on a fling gesture. The distance travelled will
+ * depend on the initial velocity of the fling.
+ *
+ * @param startX    x轴的起始坐标.
+ * @param startY    y轴的起始坐标.
+ * @param velocityX x轴方向的初始速率.
+ * @param velocityY y轴方向的初始速率.
+ * @param minX      x轴终点最小值.
+ * @param maxX      x轴终点最大值.
+ * @param minY      y轴终点最小值.
+ * @param maxY      y轴终点最大值.
+ */
+public void fling(int startX, int startY, int velocityX, int velocityY,
+                  int minX, int maxX, int minY, int maxY) {
+    // 如果上次滑动也是FLING_MODE并且滑动没有结束
+    if (mFlywheel && !mFinished) {
+        // 获取之前的总速率
+        float oldVel = getCurrVelocity();
 
+        float dx = (float) (mFinalX - mStartX);
+        float dy = (float) (mFinalY - mStartY);
+        float hyp = (float) Math.sqrt(dx * dx + dy * dy);
+        float ndx = dx / hyp;
+        float ndy = dy / hyp;
+
+        // 通过距离比例计算出x轴和y轴的速率
+        float oldVelocityX = ndx * oldVel;
+        float oldVelocityY = ndy * oldVel;
+
+        // 如果速率方向相同,则进行速率累加
+        if (Math.signum(velocityX) == Math.signum(oldVelocityX) &&
+                Math.signum(velocityY) == Math.signum(oldVelocityY)) {
+            velocityX += oldVelocityX;
+            velocityY += oldVelocityY;
+        }
+    }
+
+    // 设置模式为FLING_MODE
+    mMode = FLING_MODE;
+    // 设置结束标志位为false.
+    mFinished = false;
+
+    // 根据勾股定理获取总的速率
+    float velocity = (float) Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+    mVelocity = velocity;
+
+    // 通过速率获取滑动的持续时间
+    mDuration = getSplineFlingDuration(velocity);
+
+    // 获取滑动起始时间
+    mStartTime = AnimationUtils.currentAnimationTimeMillis();
+
+    // 获取起始x轴和y轴坐标
+    mStartX = startX;
+    mStartY = startY;
+
+    float coeffX = velocity == 0 ? 1.0f : velocityX / velocity;
+    float coeffY = velocity == 0 ? 1.0f : velocityY / velocity;
+
+    // 获取最大滑动距离
+    double totalDistance = getSplineFlingDistance(velocity);
+    mDistance = (int) (totalDistance * Math.signum(velocity));
+
+    // 计算终点的x轴和y轴坐标
+    mMinX = minX;
+    mMaxX = maxX;
+    mMinY = minY;
+    mMaxY = maxY;
+
+    mFinalX = startX + (int) Math.round(totalDistance * coeffX);
+    // Pin to mMinX <= mFinalX <= mMaxX
+    mFinalX = Math.min(mFinalX, mMaxX);
+    mFinalX = Math.max(mFinalX, mMinX);
+
+    mFinalY = startY + (int) Math.round(totalDistance * coeffY);
+    // Pin to mMinY <= mFinalY <= mMaxY
+    mFinalY = Math.min(mFinalY, mMaxY);
+    mFinalY = Math.max(mFinalY, mMinY);
+}
+```
+
+#### computeScrollOffset
+
+跟FLING_MODE模式相关源码如下:
+```java
+/**
+ * 用来返回当前View需要移动到的x轴和y轴坐标.
+ */
+public boolean computeScrollOffset() {
+    // 如果已经结束,直接返回false.
+    if (mFinished) {
+        return false;
+    }
+
+    // 计算已经度过的时间.
+    int timePassed = (int) (AnimationUtils.currentAnimationTimeMillis() - mStartTime);
+
+    if (timePassed < mDuration) {
+        switch (mMode) {
+            // 处理fling模式
+            case FLING_MODE:
+                // 获取当前滑动时间与总时间的比例
+                final float t = (float) timePassed / mDuration;
+                final int index = (int) (NB_SAMPLES * t);
+                float distanceCoef = 1.f;
+                float velocityCoef = 0.f;
+                if (index < NB_SAMPLES) {
+                    final float t_inf = (float) index / NB_SAMPLES;
+                    final float t_sup = (float) (index + 1) / NB_SAMPLES;
+                    final float d_inf = SPLINE_POSITION[index];
+                    final float d_sup = SPLINE_POSITION[index + 1];
+                    velocityCoef = (d_sup - d_inf) / (t_sup - t_inf);
+                    distanceCoef = d_inf + (t - t_inf) * velocityCoef;
+                }
+
+                mCurrVelocity = velocityCoef * mDistance / mDuration * 1000.0f;
+
+                mCurrX = mStartX + Math.round(distanceCoef * (mFinalX - mStartX));
+                // Pin to mMinX <= mCurrX <= mMaxX
+                mCurrX = Math.min(mCurrX, mMaxX);
+                mCurrX = Math.max(mCurrX, mMinX);
+
+                mCurrY = mStartY + Math.round(distanceCoef * (mFinalY - mStartY));
+                // Pin to mMinY <= mCurrY <= mMaxY
+                mCurrY = Math.min(mCurrY, mMaxY);
+                mCurrY = Math.max(mCurrY, mMinY);
+
+                if (mCurrX == mFinalX && mCurrY == mFinalY) {
+                    mFinished = true;
+                }
+
+                break;
+        }
+    } else {
+        // 当时间结束时,直接将x和y坐标置为终止状态的x和y坐标,同时将终止标志位置为true.
+        mCurrX = mFinalX;
+        mCurrY = mFinalY;
+        mFinished = true;
+    }
+    return true;
+}
+```
+
+FLING_MODE在通过速率计算当前的位置的代码我还不是特别清楚,主要是算法的实现,可能我物理太久没碰生疏了.但是用法都是统一的,至于FLING模式的使用场景,大家可以结果手势检测类(GestureDetector)去进行使用.
 
 
 
